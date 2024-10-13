@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Advanced Physics Example with Ground</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import Physics from '../src/index.js';
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const engine = new Physics.PhysicsEngine({
+            width: canvas.width,
+            height: canvas.height,
+            gravity: { x: 0, y: 9.81 }
+        });
+
+        // Create ground
+        const groundHeight = 50;
+        const ground = new Physics.Rectangle(engine, {
+            x: canvas.width / 2,
+            y: canvas.height - groundHeight / 2,
+            width: canvas.width,
+            height: groundHeight,
+            isStatic: true
+        });
+        engine.addObject(ground);
+
+        // Create various shapes
+        const shapes = [];
+        for (let i = 0; i < 20; i++) {
+            const type = Math.random();
+            if (type < 0.33) {
+                shapes.push(new Physics.Circle(engine, {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * (canvas.height - groundHeight - 50),
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    radius: 10 + Math.random() * 20,
+                    mass: 1 + Math.random() * 5,
+                    restitution: 0.7
+                }));
+            } else if (type < 0.66) {
+                shapes.push(new Physics.Rectangle(engine, {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * (canvas.height - groundHeight - 50),
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    width: 20 + Math.random() * 40,
+                    height: 20 + Math.random() * 40,
+                    angle: Math.random() * Math.PI * 2,
+                    angularVelocity: (Math.random() - 0.5) * 0.1,
+                    mass: 1 + Math.random() * 5,
+                    restitution: 0.7
+                }));
+            } else {
+                const size = 30 + Math.random() * 30;
+                shapes.push(new Physics.ComplexShape(engine, {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * (canvas.height - groundHeight - 50),
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    vertices: [
+                        {x: -size, y: -size},
+                        {x: size, y: -size},
+                        {x: 0, y: size}
+                    ],
+                    angle: Math.random() * Math.PI * 2,
+                    angularVelocity: (Math.random() - 0.5) * 0.1,
+                    mass: 1 + Math.random() * 5,
+                    restitution: 0.7
+                }));
+            }
+        }
+
+        engine.objects = [...shapes, ground];
+
+        // Add constraints
+        for (let i = 0; i < 5; i++) {
+            const obj1 = shapes[Math.floor(Math.random() * shapes.length)];
+            const obj2 = shapes[Math.floor(Math.random() * shapes.length)];
+            if (obj1 !== obj2) {
+                const constraint = new Physics.DistanceConstraint(obj1, obj2, 100, 0.1);
+                engine.addConstraint(constraint);
+            }
+        }
+
+        // Add forces
+        engine.addForce(Physics.forces.drag(0.01));
+
+        function drawShape(shape) {
+            if (shape instanceof Physics.Circle) {
+                ctx.beginPath();
+                ctx.arc(shape.x, shape.y, shape.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = `hsl(${(shape.mass - 1) * 60}, 100%, 50%)`;
+                ctx.fill();
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+            } else if (shape instanceof Physics.Rectangle) {
+                ctx.save();
+                ctx.translate(shape.x, shape.y);
+                ctx.rotate(shape.angle);
+                ctx.fillStyle = shape.isStatic ? 'gray' : `hsl(${(shape.mass - 1) * 60}, 100%, 50%)`;
+                ctx.fillRect(-shape.width / 2, -shape.height / 2, shape.width, shape.height);
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(-shape.width / 2, -shape.height / 2, shape.width, shape.height);
+                ctx.restore();
+            } else if (shape instanceof Physics.ComplexShape) {
+                ctx.save();
+                ctx.translate(shape.x, shape.y);
+                ctx.rotate(shape.angle);
+                ctx.beginPath();
+                ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
+                for (let i = 1; i < shape.vertices.length; i++) {
+                    ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
+                }
+                ctx.closePath();
+                ctx.fillStyle = `hsl(${(shape.mass - 1) * 60}, 100%, 50%)`;
+                ctx.fill();
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            engine.update(1/60);
+            
+            for (const shape of engine.objects) {
+                drawShape(shape);
+            }
+
+            // Draw constraints
+            for (const constraint of engine.constraints) {
+                ctx.beginPath();
+                ctx.moveTo(constraint.objectA.x, constraint.objectA.y);
+                ctx.lineTo(constraint.objectB.x, constraint.objectB.y);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Add mouse interaction
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const type = Math.random();
+            let newShape;
+            if (type < 0.33) {
+                newShape = new Physics.Circle(engine, {
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    radius: 20,
+                    mass: 5,
+                    restitution: 0.7
+                });
+            } else if (type < 0.66) {
+                newShape = new Physics.Rectangle(engine, {
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    width: 40,
+                    height: 40,
+                    angle: Math.random() * Math.PI * 2,
+                    angularVelocity: (Math.random() - 0.5) * 0.2,
+                    mass: 5,
+                    restitution: 0.7
+                });
+            } else {
+                const size = 40;
+                newShape = new Physics.ComplexShape(engine, {
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    vertices: [
+                        {x: -size, y: -size},
+                        {x: size, y: -size},
+                        {x: 0, y: size}
+                    ],
+                    angle: Math.random() * Math.PI * 2,
+                    angularVelocity: (Math.random() - 0.5) * 0.2,
+                    mass: 5,
+                    restitution: 0.7
+                });
+            }
+            engine.addObject(newShape);
+        });
+    </script>
+</body>
+</html>

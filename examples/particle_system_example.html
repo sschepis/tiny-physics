@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Particle System Example</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import Physics from '../src/index.js';
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const engine = new Physics.PhysicsEngine({
+            width: canvas.width,
+            height: canvas.height,
+            gravity: 0.5
+        });
+
+        // Create a particle system
+        const particleSystem = new Physics.ParticleSystem(canvas.width / 2, canvas.height / 2, {
+            emissionRate: 50,
+            particleLife: 2,
+            particleSize: 3,
+            spread: Math.PI / 2,
+            speed: 200,
+            gravity: new Physics.Vector2(0, 98),
+            color: '#FF4500'
+        });
+
+        engine.addParticleSystem(particleSystem);
+
+        // Create some objects for interaction
+        const circle = new Physics.Circle(engine, {
+            x: canvas.width / 4,
+            y: canvas.height / 2,
+            radius: 30,
+            mass: 10,
+            vx: 50,
+            vy: -50
+        });
+
+        const rectangle = new Physics.Rectangle(engine, {
+            x: 3 * canvas.width / 4,
+            y: canvas.height / 2,
+            width: 60,
+            height: 60,
+            mass: 10,
+            vx: -50,
+            vy: 50,
+            angle: Math.PI / 4
+        });
+
+        engine.objects.push(circle, rectangle);
+
+        // Add forces
+        engine.forces.push(Physics.forces.wrap(engine));
+        engine.forces.push(Physics.forces.drag({ drag: 0.01 }));
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            engine.update(1/60);
+            engine.draw(ctx);
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Add mouse interaction
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Create a new particle system at the click position
+            const newParticleSystem = new Physics.ParticleSystem(x, y, {
+                emissionRate: 100,
+                particleLife: 1,
+                particleSize: 2,
+                spread: Math.PI * 2,
+                speed: 150,
+                gravity: new Physics.Vector2(0, 98),
+                color: `hsl(${Math.random() * 360}, 100%, 50%)`
+            });
+
+            engine.addParticleSystem(newParticleSystem);
+
+            // Remove the particle system after 1 second
+            setTimeout(() => {
+                engine.removeParticleSystem(newParticleSystem);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

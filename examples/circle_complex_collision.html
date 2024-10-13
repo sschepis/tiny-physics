@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Circle and Complex Shape Collision Example</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script src="../dist/tiny-physics.min.js"></script>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const engine = new Physics.PhysicsEngine({
+            width: canvas.width,
+            height: canvas.height,
+            gravity: 0.2
+        });
+
+        // Create circles
+        const circles = [];
+        for (let i = 0; i < 20; i++) {
+            circles.push(new Physics.Circle(engine, {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                radius: 10 + Math.random() * 20,
+                mass: 1 + Math.random() * 5
+            }));
+        }
+
+        // Create complex shapes (triangles)
+        const complexShapes = [];
+        for (let i = 0; i < 5; i++) {
+            const size = 30 + Math.random() * 30;
+            complexShapes.push(new Physics.ComplexShape(engine, {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 3,
+                vy: (Math.random() - 0.5) * 3,
+                vertices: [
+                    {x: -size, y: -size},
+                    {x: size, y: -size},
+                    {x: 0, y: size}
+                ],
+                mass: 5 + Math.random() * 5,
+                angularVelocity: (Math.random() - 0.5) * 0.1
+            }));
+        }
+
+        engine.objects = [...circles, ...complexShapes];
+
+        // Add forces
+        engine.forces.push(Physics.forces.wrap(engine));
+        engine.forces.push(Physics.forces.drag({ drag: 0.01 }));
+
+        function drawCircle(circle) {
+            ctx.beginPath();
+            ctx.arc(circle.x, circle.y, circle.radius, 0, 2 * Math.PI);
+            ctx.fillStyle = `hsl(${(circle.mass - 1) * 60}, 100%, 50%)`;
+            ctx.fill();
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+        }
+
+        function drawComplexShape(shape) {
+            ctx.save();
+            ctx.translate(shape.x, shape.y);
+            ctx.rotate(shape.angle);
+            ctx.beginPath();
+            ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
+            for (let i = 1; i < shape.vertices.length; i++) {
+                ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = `hsl(${(shape.mass - 5) * 30}, 100%, 50%)`;
+            ctx.fill();
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            engine.update(1/60);
+            
+            for (const circle of circles) {
+                drawCircle(circle);
+            }
+
+            for (const shape of complexShapes) {
+                drawComplexShape(shape);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Add mouse interaction
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            if (Math.random() < 0.7) {
+                circles.push(new Physics.Circle(engine, {
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    radius: 20,
+                    mass: 5
+                }));
+            } else {
+                const size = 40;
+                complexShapes.push(new Physics.ComplexShape(engine, {
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    vertices: [
+                        {x: -size, y: -size},
+                        {x: size, y: -size},
+                        {x: 0, y: size}
+                    ],
+                    mass: 10,
+                    angularVelocity: (Math.random() - 0.5) * 0.2
+                }));
+            }
+            engine.objects = [...circles, ...complexShapes];
+        });
+    </script>
+</body>
+</html>

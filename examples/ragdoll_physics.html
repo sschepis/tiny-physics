@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Ragdoll Physics Example</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import Physics from '../src/index.js';
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const engine = new Physics.PhysicsEngine({
+            width: canvas.width,
+            height: canvas.height,
+            gravity: { x: 0, y: 9.81 }
+        });
+
+        // Create ground
+        const groundHeight = 50;
+        const ground = new Physics.Rectangle(engine, {
+            x: canvas.width / 2,
+            y: canvas.height - groundHeight / 2,
+            width: canvas.width,
+            height: groundHeight,
+            isStatic: true
+        });
+        engine.addObject(ground);
+
+        // Ragdoll creation function
+        function createRagdoll(x, y) {
+            const head = new Physics.Circle(engine, { x: x, y: y, radius: 20, mass: 5, restitution: 0.5 });
+            const torso = new Physics.Circle(engine, { x: x, y: y + 60, radius: 30, mass: 10, restitution: 0.5 });
+            const leftArm = new Physics.Circle(engine, { x: x - 50, y: y + 60, radius: 15, mass: 3, restitution: 0.5 });
+            const rightArm = new Physics.Circle(engine, { x: x + 50, y: y + 60, radius: 15, mass: 3, restitution: 0.5 });
+            const leftLeg = new Physics.Circle(engine, { x: x - 20, y: y + 120, radius: 15, mass: 3, restitution: 0.5 });
+            const rightLeg = new Physics.Circle(engine, { x: x + 20, y: y + 120, radius: 15, mass: 3, restitution: 0.5 });
+
+            engine.addObject(head);
+            engine.addObject(torso);
+            engine.addObject(leftArm);
+            engine.addObject(rightArm);
+            engine.addObject(leftLeg);
+            engine.addObject(rightLeg);
+
+            // Connect body parts with constraints
+            engine.addConstraint(new Physics.DistanceConstraint(head, torso, 40, 0.5));
+            engine.addConstraint(new Physics.DistanceConstraint(torso, leftArm, 50, 0.5));
+            engine.addConstraint(new Physics.DistanceConstraint(torso, rightArm, 50, 0.5));
+            engine.addConstraint(new Physics.DistanceConstraint(torso, leftLeg, 60, 0.5));
+            engine.addConstraint(new Physics.DistanceConstraint(torso, rightLeg, 60, 0.5));
+
+            return [head, torso, leftArm, rightArm, leftLeg, rightLeg];
+        }
+
+        // Create initial ragdoll
+        createRagdoll(canvas.width / 2, 100);
+
+        // Add forces
+        engine.addForce(Physics.forces.drag(0.01));
+
+        function drawRagdoll(parts) {
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+
+            // Draw body parts
+            for (const part of parts) {
+                ctx.beginPath();
+                ctx.arc(part.x, part.y, part.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = part === parts[0] ? 'yellow' : 'red'; // Head is yellow, rest is red
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Draw constraints
+            ctx.beginPath();
+            ctx.moveTo(parts[0].x, parts[0].y); // Head to torso
+            ctx.lineTo(parts[1].x, parts[1].y);
+            ctx.moveTo(parts[1].x, parts[1].y); // Torso to arms and legs
+            ctx.lineTo(parts[2].x, parts[2].y);
+            ctx.moveTo(parts[1].x, parts[1].y);
+            ctx.lineTo(parts[3].x, parts[3].y);
+            ctx.moveTo(parts[1].x, parts[1].y);
+            ctx.lineTo(parts[4].x, parts[4].y);
+            ctx.moveTo(parts[1].x, parts[1].y);
+            ctx.lineTo(parts[5].x, parts[5].y);
+            ctx.stroke();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            engine.update(1/60);
+            
+            // Draw ground
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+            // Draw ragdolls
+            for (let i = 0; i < engine.objects.length; i += 6) {
+                if (engine.objects[i] instanceof Physics.Circle) {
+                    drawRagdoll(engine.objects.slice(i, i + 6));
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Add mouse interaction to create new ragdolls
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            createRagdoll(x, y);
+        });
+    </script>
+</body>
+</html>

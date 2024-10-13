@@ -1,6 +1,6 @@
 {
   "name": "@sschepis/tiny-physics",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "A tiny javascript physics engine",
   "main": "dist/tiny-physics.min.js",
   "scripts": {
